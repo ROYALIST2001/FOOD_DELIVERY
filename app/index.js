@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
    View,
    Text,
@@ -6,7 +6,6 @@ import {
    TouchableOpacity,
    StyleSheet,
    Alert,
-   ScrollView,
    KeyboardAvoidingView,
    Platform,
    Dimensions,
@@ -25,15 +24,15 @@ const LoginScreen = () => {
    const [showPassword, setShowPassword] = useState(false);
    const [loading, setLoading] = useState(false);
 
-   const getUserRole = async (userId) => {
+   const getUserRole = async (uid) => {
       try {
-         const userDoc = await getDoc(doc(db, "users", userId));
+         const userDoc = await getDoc(doc(db, "users", uid));
          if (userDoc.exists()) {
             return userDoc.data().role;
          }
          return null;
       } catch (error) {
-         console.error("Error fetching user role:", error);
+         console.error("Error getting user role:", error);
          return null;
       }
    };
@@ -43,9 +42,6 @@ const LoginScreen = () => {
          router.replace("/(tabs)/home");
       } else if (role === "hotel_owner") {
          router.replace("/(hotel)/dashboard");
-      } else {
-         // Fallback if role is not found
-         Alert.alert("Error", "User role not found. Please contact support.");
       }
    };
 
@@ -55,13 +51,22 @@ const LoginScreen = () => {
          return;
       }
 
+      if (!email.includes("@")) {
+         Alert.alert("Error", "Please enter a valid email address");
+         return;
+      }
+
       setLoading(true);
       try {
+         console.log("Attempting to login with email:", email);
+
          // Sign in user
          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+         console.log("Login successful for user:", userCredential.user.uid);
 
          // Get user role from Firestore
          const userRole = await getUserRole(userCredential.user.uid);
+         console.log("User role:", userRole);
 
          if (userRole) {
             // Navigate based on role
@@ -70,7 +75,31 @@ const LoginScreen = () => {
             Alert.alert("Error", "User role not found. Please contact support.");
          }
       } catch (error) {
-         Alert.alert("Login Error", error.message);
+         console.error("Login error:", error);
+         console.log("Error code:", error.code);
+
+         // Show specific error messages
+         let errorMessage = "Login failed. Please try again.";
+
+         if (error.code === "auth/user-not-found") {
+            errorMessage = "No account found with this email address.";
+         } else if (error.code === "auth/wrong-password") {
+            errorMessage = "Incorrect password. Please try again.";
+         } else if (error.code === "auth/invalid-email") {
+            errorMessage = "Invalid email address format.";
+         } else if (error.code === "auth/user-disabled") {
+            errorMessage = "This account has been disabled.";
+         } else if (error.code === "auth/too-many-requests") {
+            errorMessage = "Too many failed attempts. Please try again later.";
+         } else if (error.code === "auth/invalid-credential") {
+            errorMessage = "Invalid email or password. Please check your credentials.";
+         } else if (error.code === "auth/network-request-failed") {
+            errorMessage = "Network error. Please check your internet connection.";
+         } else if (error.message) {
+            errorMessage = error.message;
+         }
+
+         Alert.alert("Login Error", errorMessage);
       } finally {
          setLoading(false);
       }
@@ -81,37 +110,36 @@ const LoginScreen = () => {
          style={styles.container}
          behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-         <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-         >
-            {/* Header Section */}
+         <View style={styles.content}>
+            {/* Header */}
             <View style={styles.header}>
-               <Text style={styles.welcomeText}>Welcome Back!</Text>
-               <Text style={styles.subtitle}>Sign in to your account</Text>
+               <Text style={styles.title}>🍽️ FoodDelivery</Text>
+               <Text style={styles.subtitle}>
+                  Welcome back! Please sign in to continue
+               </Text>
             </View>
 
-            {/* Form Section */}
-            <View style={styles.formContainer}>
+            {/* Login Form */}
+            <View style={styles.form}>
                {/* Email Input */}
                <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>Email Address</Text>
                   <View style={styles.inputWrapper}>
                      <Ionicons
                         name="mail-outline"
-                        size={22}
+                        size={20}
                         color="#7f8c8d"
                         style={styles.inputIcon}
                      />
                      <TextInput
-                        style={styles.input}
+                        style={styles.textInput}
                         placeholder="Enter your email"
                         placeholderTextColor="#bdc3c7"
                         value={email}
                         onChangeText={setEmail}
                         keyboardType="email-address"
                         autoCapitalize="none"
-                        autoComplete="email"
+                        autoCorrect={false}
                      />
                   </View>
                </View>
@@ -122,18 +150,19 @@ const LoginScreen = () => {
                   <View style={styles.inputWrapper}>
                      <Ionicons
                         name="lock-closed-outline"
-                        size={22}
+                        size={20}
                         color="#7f8c8d"
                         style={styles.inputIcon}
                      />
                      <TextInput
-                        style={[styles.input, { flex: 1 }]}
+                        style={[styles.textInput, { flex: 1 }]}
                         placeholder="Enter your password"
                         placeholderTextColor="#bdc3c7"
-                        secureTextEntry={!showPassword}
                         value={password}
                         onChangeText={setPassword}
-                        autoComplete="password"
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                      />
                      <TouchableOpacity
                         onPress={() => setShowPassword(!showPassword)}
@@ -141,17 +170,12 @@ const LoginScreen = () => {
                      >
                         <Ionicons
                            name={showPassword ? "eye-outline" : "eye-off-outline"}
-                           size={22}
+                           size={20}
                            color="#7f8c8d"
                         />
                      </TouchableOpacity>
                   </View>
                </View>
-
-               {/* Forgot Password */}
-               <TouchableOpacity style={styles.forgotPasswordContainer}>
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-               </TouchableOpacity>
 
                {/* Login Button */}
                <TouchableOpacity
@@ -162,25 +186,26 @@ const LoginScreen = () => {
                   <Text style={styles.loginButtonText}>
                      {loading ? "Signing In..." : "Sign In"}
                   </Text>
-                  {!loading && (
-                     <Ionicons
-                        name="arrow-forward"
-                        size={20}
-                        color="#fff"
-                        style={styles.buttonIcon}
-                     />
-                  )}
                </TouchableOpacity>
 
-               {/* Sign Up Link */}
-               <View style={styles.signupContainer}>
-                  <Text style={styles.signupText}>Don't have an account? </Text>
-                  <TouchableOpacity onPress={() => router.push("/signup")}>
-                     <Text style={styles.signupLink}>Sign Up</Text>
-                  </TouchableOpacity>
+               {/* Divider */}
+               <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
                </View>
+
+               {/* Sign Up Link */}
+               <TouchableOpacity
+                  style={styles.signupButton}
+                  onPress={() => router.push("/signup")}
+               >
+                  <Text style={styles.signupButtonText}>
+                     Don't have an account? Sign Up
+                  </Text>
+               </TouchableOpacity>
             </View>
-         </ScrollView>
+         </View>
       </KeyboardAvoidingView>
    );
 };
@@ -190,19 +215,18 @@ const styles = StyleSheet.create({
       flex: 1,
       backgroundColor: "#f8f9fa",
    },
-   scrollContainer: {
-      flexGrow: 1,
+   content: {
+      flex: 1,
       justifyContent: "center",
-      paddingHorizontal: 24,
-      paddingVertical: 40,
+      paddingHorizontal: 20,
    },
    header: {
       alignItems: "center",
       marginBottom: 40,
    },
-   welcomeText: {
+   title: {
       fontSize: 32,
-      fontWeight: "bold",
+      fontWeight: "800",
       color: "#2c3e50",
       marginBottom: 8,
    },
@@ -210,16 +234,17 @@ const styles = StyleSheet.create({
       fontSize: 16,
       color: "#7f8c8d",
       textAlign: "center",
+      lineHeight: 22,
    },
-   formContainer: {
+   form: {
       backgroundColor: "#fff",
       borderRadius: 20,
-      padding: 24,
+      padding: 25,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 8,
+      shadowRadius: 20,
+      elevation: 10,
    },
    inputContainer: {
       marginBottom: 20,
@@ -233,42 +258,30 @@ const styles = StyleSheet.create({
    inputWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#f8f9fa",
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 4,
       borderWidth: 1,
       borderColor: "#e9ecef",
+      borderRadius: 12,
+      backgroundColor: "#f8f9fa",
+      paddingHorizontal: 15,
    },
    inputIcon: {
       marginRight: 12,
    },
-   input: {
+   textInput: {
       flex: 1,
+      paddingVertical: 15,
       fontSize: 16,
       color: "#2c3e50",
-      paddingVertical: 16,
    },
    eyeIcon: {
-      padding: 8,
-   },
-   forgotPasswordContainer: {
-      alignItems: "flex-end",
-      marginBottom: 24,
-   },
-   forgotPasswordText: {
-      color: "#e74c3c",
-      fontSize: 14,
-      fontWeight: "500",
+      padding: 5,
    },
    loginButton: {
       backgroundColor: "#e74c3c",
       borderRadius: 12,
       paddingVertical: 16,
-      flexDirection: "row",
-      justifyContent: "center",
       alignItems: "center",
-      marginBottom: 24,
+      marginTop: 10,
       shadowColor: "#e74c3c",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -283,24 +296,32 @@ const styles = StyleSheet.create({
    loginButtonText: {
       color: "#fff",
       fontSize: 18,
-      fontWeight: "bold",
+      fontWeight: "700",
    },
-   buttonIcon: {
-      marginLeft: 8,
-   },
-   signupContainer: {
+   divider: {
       flexDirection: "row",
-      justifyContent: "center",
       alignItems: "center",
+      marginVertical: 25,
    },
-   signupText: {
+   dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: "#e9ecef",
+   },
+   dividerText: {
       color: "#7f8c8d",
-      fontSize: 16,
+      fontSize: 14,
+      marginHorizontal: 15,
+      fontWeight: "500",
    },
-   signupLink: {
-      color: "#e74c3c",
+   signupButton: {
+      alignItems: "center",
+      paddingVertical: 15,
+   },
+   signupButtonText: {
+      color: "#3498db",
       fontSize: 16,
-      fontWeight: "bold",
+      fontWeight: "600",
    },
 });
 

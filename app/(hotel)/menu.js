@@ -24,6 +24,18 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 
+const getCategoryEmoji = (category) => {
+   const emojis = {
+      All: "🍽️",
+      Pizza: "🍕",
+      Burgers: "🍔",
+      Salads: "🥗",
+      Drinks: "🥤",
+      Desserts: "🍰",
+   };
+   return emojis[category] || "🍽️";
+};
+
 const HotelMenu = () => {
    const [menuItems, setMenuItems] = useState([]);
    const [modalVisible, setModalVisible] = useState(false);
@@ -40,40 +52,45 @@ const HotelMenu = () => {
 
    const categories = ["All", "Pizza", "Burgers", "Salads", "Drinks", "Desserts"];
 
-   // Load menu items from Firebase
    useEffect(() => {
-      const loadMenuItems = () => {
-         if (!auth.currentUser) {
-            console.log("No authenticated user in hotel menu");
-            return;
-         }
-
-         console.log("Loading menu items for hotel owner:", auth.currentUser.uid);
-
-         const q = query(
-            collection(db, "menuItems"),
-            where("hotelOwnerId", "==", auth.currentUser.uid),
-         );
-
-         const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const items = [];
-            querySnapshot.forEach((doc) => {
-               const item = { id: doc.id, ...doc.data() };
-               console.log("Menu item found:", item);
-               items.push(item);
-            });
-            console.log(`Found ${items.length} menu items`);
-            setMenuItems(items);
+      if (!auth.currentUser) return;
+      const q = query(
+         collection(db, "menuItems"),
+         where("hotelOwnerId", "==", auth.currentUser.uid),
+      );
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+         const items = [];
+         querySnapshot.forEach((doc) => {
+            items.push({ id: doc.id, ...doc.data() });
          });
-
-         return unsubscribe;
-      };
-
-      const unsubscribe = loadMenuItems();
-      return () => {
-         if (unsubscribe) unsubscribe();
-      };
+         setMenuItems(items);
+      });
+      return unsubscribe;
    }, []);
+
+   const getCategoryIcon = (category) => {
+      const icons = {
+         All: "apps-outline",
+         Pizza: "pizza-outline",
+         Burgers: "fast-food-outline",
+         Salads: "leaf-outline",
+         Drinks: "wine-outline",
+         Desserts: "ice-cream-outline",
+      };
+      return icons[category] || "restaurant-outline";
+   };
+
+   const getCategoryEmoji = (category) => {
+      const emojis = {
+         All: "🍽️",
+         Pizza: "🍕",
+         Burgers: "🍔",
+         Salads: "🥗",
+         Drinks: "🥤",
+         Desserts: "🍰",
+      };
+      return emojis[category] || "🍽️";
+   };
 
    const resetForm = () => {
       setFormData({
@@ -97,7 +114,7 @@ const HotelMenu = () => {
          description: item.description,
          price: item.price.toString(),
          category: item.category,
-         image: item.image,
+         image: item.image || "",
       });
       setEditingItem(item);
       setModalVisible(true);
@@ -114,7 +131,7 @@ const HotelMenu = () => {
          description: formData.description,
          price: parseFloat(formData.price),
          category: formData.category,
-         isAvailable: true,
+         isAvailable: editingItem ? editingItem.isAvailable : true,
          image:
             formData.image ||
             "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop",
@@ -124,54 +141,31 @@ const HotelMenu = () => {
       };
 
       try {
-         console.log("Saving menu item:", menuItem);
-
          if (editingItem) {
             await updateDoc(doc(db, "menuItems", editingItem.id), menuItem);
-            console.log("✅ Menu item updated");
             Alert.alert("Success", "Menu item updated!");
          } else {
-            const docRef = await addDoc(collection(db, "menuItems"), menuItem);
-            console.log("✅ Menu item created with ID:", docRef.id);
+            await addDoc(collection(db, "menuItems"), menuItem);
             Alert.alert("Success", "Menu item added!");
          }
-
          setModalVisible(false);
          resetForm();
       } catch (error) {
-         console.error("❌ Error saving menu item:", error);
-         Alert.alert("Error", "Failed to save menu item: " + error.message);
+         Alert.alert("Error", "Failed to save: " + error.message);
       }
    };
 
    const deleteMenuItem = async (id) => {
-      console.log("🗑️ DELETE BUTTON CLICKED");
-      console.log("Item ID to delete:", id);
-      console.log("Current user:", auth.currentUser?.uid);
-
-      Alert.alert("Delete Item", "Are you sure you want to delete this menu item?", [
-         {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => console.log("❌ Delete cancelled"),
-         },
+      Alert.alert("Delete Item", "Are you sure?", [
+         { text: "Cancel" },
          {
             text: "Delete",
-            style: "destructive",
             onPress: async () => {
-               console.log("🔄 Starting delete process...");
                try {
-                  console.log("Attempting to delete document:", id);
-
                   await deleteDoc(doc(db, "menuItems", id));
-
-                  console.log("✅ Successfully deleted from Firebase");
-                  Alert.alert("Success", "Menu item deleted successfully!");
+                  Alert.alert("Success", "Item deleted!");
                } catch (error) {
-                  console.error("❌ Delete failed:", error);
-                  console.error("Error code:", error.code);
-                  console.error("Error message:", error.message);
-                  Alert.alert("Error", `Failed to delete: ${error.message}`);
+                  Alert.alert("Error", error.message);
                }
             },
          },
@@ -180,19 +174,29 @@ const HotelMenu = () => {
 
    const toggleAvailability = async (id) => {
       try {
-         const currentItem = menuItems.find((item) => item.id === id);
-         if (!currentItem) return;
+         const item = menuItems.find((item) => item.id === id);
+         if (!item) {
+            console.log("Item not found");
+            return;
+         }
 
-         console.log("Toggling availability for item:", id);
+         console.log(
+            "Toggling availability for:",
+            item.name,
+            "from",
+            item.isAvailable,
+            "to",
+            !item.isAvailable,
+         );
 
          await updateDoc(doc(db, "menuItems", id), {
-            isAvailable: !currentItem.isAvailable,
+            isAvailable: !item.isAvailable,
          });
 
-         console.log("✅ Item availability updated");
+         console.log("Successfully updated availability");
       } catch (error) {
-         console.error("❌ Error updating availability:", error);
-         Alert.alert("Error", "Failed to update item availability");
+         console.error("Error updating availability:", error);
+         Alert.alert("Error", "Failed to update availability: " + error.message);
       }
    };
 
@@ -201,90 +205,45 @@ const HotelMenu = () => {
          ? menuItems
          : menuItems.filter((item) => item.category === selectedCategory);
 
-   const renderCategoryFilter = () => (
-      <ScrollView
-         horizontal
-         showsHorizontalScrollIndicator={false}
-         style={styles.categoryContainer}
-      >
-         {categories.map((category) => (
+   const renderMenuItem = ({ item }) => (
+      <View style={styles.card}>
+         <Image source={{ uri: item.image }} style={styles.cardImage} />
+         <View style={styles.cardContent}>
+            <View style={styles.cardHeader}>
+               <Text style={styles.itemName}>{item.name}</Text>
+               <Text style={styles.itemPrice}>{item.price.toFixed(2)}</Text>
+            </View>
+            <Text style={styles.itemDescription}>{item.description}</Text>
+
+            {/* Simple Availability Button */}
             <TouchableOpacity
-               key={category}
                style={[
-                  styles.categoryButton,
-                  selectedCategory === category && styles.selectedCategoryButton,
+                  styles.availabilityBtn,
+                  { backgroundColor: item.isAvailable ? "#27ae60" : "#e74c3c" },
                ]}
-               onPress={() => setSelectedCategory(category)}
+               onPress={() => toggleAvailability(item.id)}
             >
-               <Text
-                  style={[
-                     styles.categoryButtonText,
-                     selectedCategory === category && styles.selectedCategoryText,
-                  ]}
-               >
-                  {category}
+               <Text style={styles.availabilityBtnText}>
+                  {item.isAvailable ? "Available" : "Not Available"}
                </Text>
             </TouchableOpacity>
-         ))}
-      </ScrollView>
-   );
 
-   const renderMenuItem = ({ item }) => (
-      <View style={styles.menuItemCard}>
-         <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-
-         <View style={styles.menuItemContent}>
-            <View style={styles.menuItemHeader}>
-               <Text style={styles.menuItemName}>{item.name}</Text>
-               <View style={styles.menuItemActions}>
-                  {/* Availability Toggle */}
+            <View style={styles.cardFooter}>
+               <Text style={styles.itemCategory}>{item.category}</Text>
+               <View style={styles.actions}>
                   <TouchableOpacity
-                     onPress={() => {
-                        console.log("🔄 Availability toggle pressed for:", item.id);
-                        toggleAvailability(item.id);
-                     }}
-                     style={[
-                        styles.availabilityButton,
-                        { backgroundColor: item.isAvailable ? "#27ae60" : "#e74c3c" },
-                     ]}
+                     onPress={() => openEditModal(item)}
+                     style={styles.editBtn}
                   >
-                     <Ionicons
-                        name={item.isAvailable ? "checkmark" : "close"}
-                        size={16}
-                        color="#fff"
-                     />
+                     <Ionicons name="pencil" size={16} color="#fff" />
                   </TouchableOpacity>
-
-                  {/* Edit Button */}
                   <TouchableOpacity
-                     onPress={() => {
-                        console.log("✏️ Edit button pressed for:", item.id);
-                        openEditModal(item);
-                     }}
-                     style={styles.actionButton}
+                     onPress={() => deleteMenuItem(item.id)}
+                     style={styles.deleteBtn}
                   >
-                     <Ionicons name="pencil" size={18} color="#3498db" />
-                  </TouchableOpacity>
-
-                  {/* Delete Button - Make sure this is correct */}
-                  <TouchableOpacity
-                     onPress={() => {
-                        console.log("🗑️ Delete button pressed for item:", item.id);
-                        console.log("Item details:", item);
-                        deleteMenuItem(item.id);
-                     }}
-                     style={styles.actionButton}
-                  >
-                     <Ionicons name="trash" size={18} color="#e74c3c" />
+                     <Ionicons name="trash" size={16} color="#fff" />
                   </TouchableOpacity>
                </View>
-            </View>
-
-            <Text style={styles.menuItemDescription}>{item.description}</Text>
-
-            <View style={styles.menuItemFooter}>
-               <Text style={styles.menuItemPrice}>{item.price.toFixed(2)}</Text>
-               <Text style={styles.menuItemCategory}>{item.category}</Text>
             </View>
          </View>
       </View>
@@ -292,133 +251,194 @@ const HotelMenu = () => {
 
    return (
       <View style={styles.container}>
-         {/* Header */}
          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Menu Management</Text>
-            <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-               <Ionicons name="add" size={24} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.headerContent}>
+               <View style={styles.headerLeft}>
+                  <Text style={styles.title}>🍽️ Menu Manager</Text>
+                  <Text style={styles.subtitle}>Manage your restaurant menu</Text>
+               </View>
+               <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
+                  <Ionicons name="add" size={24} color="#fff" />
+               </TouchableOpacity>
+            </View>
          </View>
 
-         {/* Category Filter */}
-         {renderCategoryFilter()}
-
-         {/* Stats */}
          <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-               <Text style={styles.statValue}>{menuItems.length}</Text>
+               <Text style={styles.statNumber}>{menuItems.length}</Text>
                <Text style={styles.statLabel}>Total Items</Text>
             </View>
             <View style={styles.statCard}>
-               <Text style={styles.statValue}>
+               <Text style={[styles.statNumber, { color: "#27ae60" }]}>
                   {menuItems.filter((item) => item.isAvailable).length}
                </Text>
                <Text style={styles.statLabel}>Available</Text>
             </View>
             <View style={styles.statCard}>
-               <Text style={styles.statValue}>{categories.length - 1}</Text>
-               <Text style={styles.statLabel}>Categories</Text>
+               <Text style={[styles.statNumber, { color: "#e74c3c" }]}>
+                  {menuItems.filter((item) => !item.isAvailable).length}
+               </Text>
+               <Text style={styles.statLabel}>Unavailable</Text>
             </View>
          </View>
 
-         {/* Menu Items List */}
+         <View style={styles.categoryContainer}>
+            <Text style={styles.categoryTitle}>🍽️ Food Categories</Text>
+            <ScrollView
+               horizontal
+               showsHorizontalScrollIndicator={false}
+               contentContainerStyle={styles.categoryScrollContent}
+            >
+               {categories.map((category) => (
+                  <TouchableOpacity
+                     key={category}
+                     style={[
+                        styles.categoryCard,
+                        selectedCategory === category && styles.activeCategoryCard,
+                     ]}
+                     onPress={() => setSelectedCategory(category)}
+                  >
+                     <View
+                        style={[
+                           styles.categoryIconContainer,
+                           selectedCategory === category &&
+                              styles.activeCategoryIconContainer,
+                        ]}
+                     >
+                        <Text style={styles.categoryEmoji}>
+                           {getCategoryEmoji(category)}
+                        </Text>
+                     </View>
+                     <Text
+                        style={[
+                           styles.categoryName,
+                           selectedCategory === category && styles.activeCategoryName,
+                        ]}
+                     >
+                        {category}
+                     </Text>
+                     <Text
+                        style={[
+                           styles.categoryCount,
+                           selectedCategory === category && styles.activeCategoryCount,
+                        ]}
+                     >
+                        {category === "All"
+                           ? `${menuItems.length} items`
+                           : `${
+                                menuItems.filter((item) => item.category === category)
+                                   .length
+                             } items`}
+                     </Text>
+                  </TouchableOpacity>
+               ))}
+            </ScrollView>
+         </View>
+
+         <View style={styles.countContainer}>
+            <Text style={styles.countText}>
+               {filteredItems.length} {filteredItems.length === 1 ? "Item" : "Items"}
+               {selectedCategory !== "All" && ` in ${selectedCategory}`}
+            </Text>
+         </View>
+
          {filteredItems.length === 0 ? (
-            <View style={styles.emptyContainer}>
-               <Ionicons name="restaurant-outline" size={80} color="#bdc3c7" />
-               <Text style={styles.emptyTitle}>No Menu Items</Text>
-               <Text style={styles.emptySubtext}>
+            <View style={styles.emptyState}>
+               <Ionicons name="restaurant-outline" size={60} color="#ccc" />
+               <Text style={styles.emptyTitle}>No Items Found</Text>
+               <Text style={styles.emptySubtitle}>
                   {selectedCategory === "All"
-                     ? "Add your first menu item to get started"
+                     ? "Add your first menu item"
                      : `No items in ${selectedCategory} category`}
                </Text>
-               <TouchableOpacity style={styles.addFirstButton} onPress={openAddModal}>
-                  <Text style={styles.addFirstButtonText}>Add Menu Item</Text>
+               <TouchableOpacity style={styles.emptyActionBtn} onPress={openAddModal}>
+                  <Text style={styles.emptyActionText}>Add Item</Text>
                </TouchableOpacity>
             </View>
          ) : (
             <FlatList
                data={filteredItems}
                renderItem={renderMenuItem}
-               keyExtractor={(item) => item.id.toString()}
-               contentContainerStyle={styles.menuList}
+               keyExtractor={(item) => item.id}
+               contentContainerStyle={styles.list}
+               numColumns={2}
                showsVerticalScrollIndicator={false}
             />
          )}
 
-         {/* Add/Edit Modal */}
-         <Modal
-            animationType="slide"
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => setModalVisible(false)}
-         >
-            <View style={styles.modalOverlay}>
-               <View style={styles.modalContent}>
+         <Modal visible={modalVisible} animationType="slide" transparent>
+            <View style={styles.modal}>
+               <View style={styles.modalCard}>
                   <View style={styles.modalHeader}>
                      <Text style={styles.modalTitle}>
-                        {editingItem ? "Edit Menu Item" : "Add Menu Item"}
+                        {editingItem ? "Edit" : "Add"} Menu Item
                      </Text>
-                     <TouchableOpacity
-                        onPress={() => setModalVisible(false)}
-                        style={styles.closeButton}
-                     >
-                        <Ionicons name="close" size={24} color="#7f8c8d" />
+                     <TouchableOpacity onPress={() => setModalVisible(false)}>
+                        <Ionicons name="close" size={24} color="#666" />
                      </TouchableOpacity>
                   </View>
 
-                  <ScrollView style={styles.modalForm}>
-                     {/* Name Input */}
-                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Item Name</Text>
+                  <ScrollView style={styles.form}>
+                     <View style={styles.input}>
+                        <Text style={styles.label}>Item Name</Text>
                         <TextInput
                            style={styles.textInput}
-                           placeholder="Enter item name"
                            value={formData.name}
                            onChangeText={(text) =>
                               setFormData({ ...formData, name: text })
                            }
+                           placeholder="Enter item name"
                         />
                      </View>
 
-                     {/* Description Input */}
-                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Description</Text>
+                     <View style={styles.input}>
+                        <Text style={styles.label}>Description</Text>
                         <TextInput
-                           style={[styles.textInput, { height: 80 }]}
-                           placeholder="Enter description"
-                           multiline
+                           style={[styles.textInput, styles.textarea]}
                            value={formData.description}
                            onChangeText={(text) =>
                               setFormData({ ...formData, description: text })
                            }
+                           placeholder="Enter description"
+                           multiline
                         />
                      </View>
 
-                     {/* Price Input */}
-                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Price</Text>
+                     <View style={styles.input}>
+                        <Text style={styles.label}>Price</Text>
                         <TextInput
                            style={styles.textInput}
-                           placeholder="0.00"
-                           keyboardType="numeric"
                            value={formData.price}
                            onChangeText={(text) =>
                               setFormData({ ...formData, price: text })
                            }
+                           placeholder="0.00"
+                           keyboardType="numeric"
                         />
                      </View>
 
-                     {/* Category Selection */}
-                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Category</Text>
+                     <View style={styles.input}>
+                        <Text style={styles.label}>Image URL (Optional)</Text>
+                        <TextInput
+                           style={styles.textInput}
+                           value={formData.image}
+                           onChangeText={(text) =>
+                              setFormData({ ...formData, image: text })
+                           }
+                           placeholder="Enter image URL"
+                        />
+                     </View>
+
+                     <View style={styles.input}>
+                        <Text style={styles.label}>Category</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                            {categories.slice(1).map((category) => (
                               <TouchableOpacity
                                  key={category}
                                  style={[
-                                    styles.categorySelectButton,
+                                    styles.categorySelect,
                                     formData.category === category &&
-                                       styles.selectedCategorySelectButton,
+                                       styles.activeCategorySelect,
                                  ]}
                                  onPress={() => setFormData({ ...formData, category })}
                               >
@@ -426,7 +446,7 @@ const HotelMenu = () => {
                                     style={[
                                        styles.categorySelectText,
                                        formData.category === category &&
-                                          styles.selectedCategorySelectText,
+                                          styles.activeCategorySelectText,
                                     ]}
                                  >
                                     {category}
@@ -436,22 +456,8 @@ const HotelMenu = () => {
                         </ScrollView>
                      </View>
 
-                     {/* Image URL Input */}
-                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Image URL (Optional)</Text>
-                        <TextInput
-                           style={styles.textInput}
-                           placeholder="Enter image URL"
-                           value={formData.image}
-                           onChangeText={(text) =>
-                              setFormData({ ...formData, image: text })
-                           }
-                        />
-                     </View>
-
-                     {/* Save Button */}
-                     <TouchableOpacity style={styles.saveButton} onPress={saveMenuItem}>
-                        <Text style={styles.saveButtonText}>
+                     <TouchableOpacity style={styles.saveBtn} onPress={saveMenuItem}>
+                        <Text style={styles.saveBtnText}>
                            {editingItem ? "Update Item" : "Add Item"}
                         </Text>
                      </TouchableOpacity>
@@ -464,271 +470,310 @@ const HotelMenu = () => {
 };
 
 const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: "#f8f9fa",
-   },
+   container: { flex: 1, backgroundColor: "#f8f9fa" },
    header: {
+      backgroundColor: "#fff",
+      paddingTop: 50,
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+      borderBottomLeftRadius: 25,
+      borderBottomRightRadius: 25,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 8,
+   },
+   headerContent: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: 20,
-      backgroundColor: "#fff",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
    },
-   headerTitle: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#2c3e50",
-   },
-   addButton: {
-      backgroundColor: "#e74c3c",
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+   headerLeft: { flex: 1 },
+   title: { fontSize: 28, fontWeight: "800", color: "#1a1a1a" },
+   subtitle: { fontSize: 14, color: "#666", marginTop: 4 },
+   addBtn: {
+      backgroundColor: "#ff4757",
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       justifyContent: "center",
       alignItems: "center",
+      shadowColor: "#ff4757",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
    },
-   categoryContainer: {
-      paddingHorizontal: 20,
-      paddingVertical: 15,
-   },
-   categoryButton: {
-      paddingHorizontal: 20,
-      paddingVertical: 8,
-      marginRight: 10,
-      backgroundColor: "#ecf0f1",
-      borderRadius: 20,
-   },
-   selectedCategoryButton: {
-      backgroundColor: "#e74c3c",
-   },
-   categoryButtonText: {
-      fontSize: 14,
-      color: "#7f8c8d",
-      fontWeight: "500",
-   },
-   selectedCategoryText: {
-      color: "#fff",
-   },
-   statsContainer: {
-      flexDirection: "row",
-      paddingHorizontal: 20,
-      marginBottom: 15,
-   },
+   statsContainer: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 20 },
    statCard: {
       flex: 1,
       backgroundColor: "#fff",
-      padding: 15,
-      marginHorizontal: 5,
-      borderRadius: 12,
+      borderRadius: 16,
+      padding: 18,
+      marginHorizontal: 6,
       alignItems: "center",
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
+   },
+   statNumber: { fontSize: 28, fontWeight: "800", color: "#ff4757" },
+   statLabel: { fontSize: 13, color: "#666", fontWeight: "600", marginTop: 6 },
+   categoryContainer: {
+      backgroundColor: "#fff",
+      paddingVertical: 25,
+      paddingHorizontal: 20,
+      marginHorizontal: 20,
+      marginBottom: 15,
+      borderRadius: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowRadius: 12,
+      elevation: 5,
    },
-   statValue: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#e74c3c",
+   categoryTitle: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: "#1a1a1a",
+      marginBottom: 20,
+      textAlign: "center",
    },
-   statLabel: {
-      fontSize: 12,
-      color: "#7f8c8d",
-      marginTop: 5,
+   categoryScrollContent: {
+      paddingHorizontal: 5,
    },
-   emptyContainer: {
-      flex: 1,
+   categoryCard: {
+      backgroundColor: "#f8f9fa",
+      borderRadius: 20,
+      paddingVertical: 20,
+      paddingHorizontal: 15,
+      marginRight: 15,
+      alignItems: "center",
+      width: 110,
+      borderWidth: 2,
+      borderColor: "transparent",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+   },
+   activeCategoryCard: {
+      backgroundColor: "#ff4757",
+      borderColor: "#ff6b7a",
+      transform: [{ scale: 1.05 }],
+      shadowColor: "#ff4757",
+      shadowOpacity: 0.3,
+   },
+   categoryIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: "#fff",
       justifyContent: "center",
       alignItems: "center",
-      padding: 40,
-   },
-   emptyTitle: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#2c3e50",
-      marginTop: 20,
-      marginBottom: 10,
-   },
-   emptySubtext: {
-      fontSize: 16,
-      color: "#7f8c8d",
-      textAlign: "center",
-      marginBottom: 30,
-   },
-   addFirstButton: {
-      backgroundColor: "#e74c3c",
-      paddingHorizontal: 30,
-      paddingVertical: 15,
-      borderRadius: 25,
-   },
-   addFirstButtonText: {
-      color: "#fff",
-      fontSize: 16,
-      fontWeight: "bold",
-   },
-   menuList: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-   },
-   menuItemCard: {
-      backgroundColor: "#fff",
-      borderRadius: 12,
-      marginBottom: 15,
+      marginBottom: 12,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
-      elevation: 3,
+      elevation: 2,
+   },
+   activeCategoryIconContainer: {
+      backgroundColor: "#fff",
+      shadowColor: "#ff4757",
+      shadowOpacity: 0.3,
+   },
+   categoryEmoji: {
+      fontSize: 24,
+   },
+   categoryName: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#2c3e50",
+      marginBottom: 5,
+      textAlign: "center",
+   },
+   activeCategoryName: {
+      color: "#fff",
+      fontWeight: "800",
+   },
+   categoryCount: {
+      fontSize: 11,
+      color: "#7f8c8d",
+      fontWeight: "600",
+      textAlign: "center",
+   },
+   activeCategoryCount: {
+      color: "#fff",
+      fontWeight: "700",
+   },
+   countContainer: { paddingHorizontal: 20, marginBottom: 12 },
+   countText: { fontSize: 16, fontWeight: "600", color: "#666" },
+   list: { padding: 20 },
+   card: {
+      flex: 1,
+      backgroundColor: "#fff",
+      borderRadius: 20,
+      margin: 6,
       overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 6,
    },
-   menuItemImage: {
-      width: "100%",
-      height: 150,
-      backgroundColor: "#ecf0f1",
-   },
-   menuItemContent: {
-      padding: 15,
-   },
-   menuItemHeader: {
+   cardImage: { width: "100%", height: 140 },
+   cardContent: { padding: 16 },
+   cardHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 8,
    },
-   menuItemName: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#2c3e50",
+   itemName: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: "#1a1a1a",
       flex: 1,
-   },
-   menuItemActions: {
-      flexDirection: "row",
-      alignItems: "center",
-   },
-   availabilityButton: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      justifyContent: "center",
-      alignItems: "center",
       marginRight: 8,
    },
-   actionButton: {
-      padding: 8,
-      marginLeft: 4,
+   itemPrice: { fontSize: 17, fontWeight: "700", color: "#ff4757" },
+   itemDescription: { fontSize: 13, color: "#666", marginBottom: 14, lineHeight: 18 },
+   availabilityBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 6,
+      marginBottom: 10,
+      alignItems: "center",
    },
-   menuItemDescription: {
-      fontSize: 14,
-      color: "#7f8c8d",
-      marginBottom: 12,
-      lineHeight: 20,
+   availabilityBtnText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "600",
    },
-   menuItemFooter: {
+   cardFooter: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
    },
-   menuItemPrice: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#e74c3c",
-   },
-   menuItemCategory: {
-      fontSize: 12,
-      color: "#3498db",
-      backgroundColor: "#ecf8ff",
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
-   },
-   availabilityStatus: {
-      fontSize: 12,
+   itemCategory: {
+      fontSize: 11,
+      color: "#fff",
+      backgroundColor: "#5f27cd",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 15,
       fontWeight: "600",
    },
-   modalOverlay: {
+   actions: { flexDirection: "row" },
+   editBtn: {
+      backgroundColor: "#3742fa",
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 8,
+      shadowColor: "#3742fa",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
+   },
+   deleteBtn: {
+      backgroundColor: "#ff3838",
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#ff3838",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
+   },
+   emptyState: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
+   emptyTitle: { fontSize: 22, fontWeight: "700", color: "#1a1a1a", marginTop: 16 },
+   emptySubtitle: {
+      fontSize: 15,
+      color: "#666",
+      textAlign: "center",
+      marginTop: 8,
+      marginBottom: 24,
+      lineHeight: 22,
+   },
+   emptyActionBtn: {
+      backgroundColor: "#ff4757",
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      borderRadius: 30,
+      shadowColor: "#ff4757",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+   },
+   emptyActionText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+   modal: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
+      backgroundColor: "rgba(0,0,0,0.6)",
       justifyContent: "center",
       alignItems: "center",
    },
-   modalContent: {
+   modalCard: {
       backgroundColor: "#fff",
-      borderRadius: 20,
-      width: "90%",
-      maxHeight: "80%",
+      borderRadius: 24,
+      width: "92%",
+      maxHeight: "85%",
    },
    modalHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: 20,
+      padding: 24,
       borderBottomWidth: 1,
-      borderBottomColor: "#ecf0f1",
+      borderBottomColor: "#f0f0f0",
    },
-   modalTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "#2c3e50",
-   },
-   closeButton: {
-      padding: 5,
-   },
-   modalForm: {
-      padding: 20,
-   },
-   inputContainer: {
-      marginBottom: 20,
-   },
-   inputLabel: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: "#2c3e50",
-      marginBottom: 8,
-   },
+   modalTitle: { fontSize: 22, fontWeight: "700", color: "#1a1a1a" },
+   form: { padding: 24 },
+   input: { marginBottom: 20 },
+   label: { fontSize: 15, fontWeight: "600", color: "#1a1a1a", marginBottom: 8 },
    textInput: {
       borderWidth: 1,
-      borderColor: "#e9ecef",
-      borderRadius: 12,
-      padding: 15,
-      fontSize: 16,
-      backgroundColor: "#f8f9fa",
-   },
-   categorySelectButton: {
-      paddingHorizontal: 15,
-      paddingVertical: 8,
-      marginRight: 10,
-      backgroundColor: "#ecf0f1",
-      borderRadius: 20,
-   },
-   selectedCategorySelectButton: {
-      backgroundColor: "#e74c3c",
-   },
-   categorySelectText: {
-      fontSize: 14,
-      color: "#7f8c8d",
-   },
-   selectedCategorySelectText: {
-      color: "#fff",
-   },
-   saveButton: {
-      backgroundColor: "#e74c3c",
-      borderRadius: 12,
+      borderColor: "#e0e0e0",
+      borderRadius: 14,
       padding: 16,
-      alignItems: "center",
-      marginTop: 10,
-   },
-   saveButtonText: {
-      color: "#fff",
       fontSize: 16,
-      fontWeight: "bold",
+      backgroundColor: "#f9f9f9",
    },
+   textarea: { height: 90, textAlignVertical: "top" },
+   categorySelect: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      marginRight: 10,
+      backgroundColor: "#e8ecf0",
+      borderRadius: 22,
+   },
+   activeCategorySelect: { backgroundColor: "#ff4757" },
+   categorySelectText: { fontSize: 13, color: "#666", fontWeight: "600" },
+   activeCategorySelectText: { color: "#fff" },
+   saveBtn: {
+      backgroundColor: "#2ed573",
+      borderRadius: 14,
+      padding: 18,
+      alignItems: "center",
+      marginTop: 12,
+      shadowColor: "#2ed573",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+   },
+   saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
 });
 
 export default HotelMenu;

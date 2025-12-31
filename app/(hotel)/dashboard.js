@@ -170,7 +170,7 @@ const HotelDashboard = () => {
                {renderStatCard("Pending Orders", stats.pendingOrders, "time", "#e67e22")}
                {renderStatCard(
                   "Total Revenue",
-                  `$${stats.totalRevenue.toFixed(2)}`,
+                  `${stats.totalRevenue.toFixed(2)}`,
                   "cash",
                   "#27ae60",
                )}

@@ -48,11 +48,31 @@ const MenuScreen = () => {
          restaurantName,
       };
       addToCart(cartItem);
-      Alert.alert("Added to Cart", `${item.name} has been added to your cart!`, [
-         { text: "Continue Shopping" },
-         { text: "Go to Cart", onPress: () => router.push("/(tabs)/cart") },
-      ]);
+      Alert.alert("Added to Cart", `${item.name} has been added to your cart!`);
    };
+
+   const renderMenuItem = ({ item }) => (
+      <View style={styles.menuItem}>
+         <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+
+         <View style={styles.itemContent}>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.itemDescription}>{item.description}</Text>
+            <View style={styles.itemFooter}>
+               <Text style={styles.itemPrice}>{item.price.toFixed(2)}</Text>
+               <Text style={styles.itemCategory}>{item.category}</Text>
+            </View>
+
+            <TouchableOpacity
+               style={styles.addButton}
+               onPress={() => handleAddToCart(item)}
+            >
+               <Ionicons name="add" size={20} color="#fff" />
+               <Text style={styles.addButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+         </View>
+      </View>
+   );
 
    if (loading) {
       return (
@@ -74,31 +94,6 @@ const MenuScreen = () => {
          </View>
       );
    }
-
-   const renderMenuItem = ({ item }) => (
-      <View style={styles.menuItem}>
-         <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-
-         <View style={styles.itemContent}>
-            <View style={styles.itemInfo}>
-               <Text style={styles.itemName}>{item.name}</Text>
-               <Text style={styles.itemDescription}>{item.description}</Text>
-               <View style={styles.itemFooter}>
-                  <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  <Text style={styles.itemCategory}>{item.category}</Text>
-               </View>
-            </View>
-
-            <TouchableOpacity
-               style={styles.addButton}
-               onPress={() => handleAddToCart(item)}
-            >
-               <Ionicons name="add" size={20} color="#fff" />
-               <Text style={styles.addButtonText}>Add</Text>
-            </TouchableOpacity>
-         </View>
-      </View>
-   );
 
    return (
       <View style={styles.container}>
@@ -126,7 +121,7 @@ const MenuScreen = () => {
             </TouchableOpacity>
          </View>
 
-         {/* Menu Items */}
+         {/* Menu Items List */}
          <FlatList
             data={menuItems}
             renderItem={renderMenuItem}
@@ -244,9 +239,6 @@ const styles = StyleSheet.create({
    },
    itemContent: {
       padding: 15,
-   },
-   itemInfo: {
-      flex: 1,
    },
    itemName: {
       fontSize: 18,

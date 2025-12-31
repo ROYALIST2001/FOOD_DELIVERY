@@ -18,7 +18,6 @@ const CartScreen = () => {
    const { cartItems, updateQuantity, removeFromCart, getTotalPrice, clearCart } =
       useCart();
 
-   // Add these new state variables
    const [addressModalVisible, setAddressModalVisible] = useState(false);
    const [deliveryAddress, setDeliveryAddress] = useState("");
    const [customerName, setCustomerName] = useState("");
@@ -36,7 +35,6 @@ const CartScreen = () => {
          return;
       }
 
-      // Open address modal instead of placing order directly
       setAddressModalVisible(true);
    };
 
@@ -61,7 +59,6 @@ const CartScreen = () => {
          console.log("Current user:", auth.currentUser.uid);
          console.log("Delivery address:", deliveryAddress);
 
-         // Group items by restaurant
          const ordersByRestaurant = {};
          cartItems.forEach((item) => {
             if (!ordersByRestaurant[item.restaurantId]) {
@@ -76,7 +73,6 @@ const CartScreen = () => {
             ordersByRestaurant[item.restaurantId].total += item.price * item.quantity;
          });
 
-         // Create separate orders for each restaurant
          for (const order of Object.values(ordersByRestaurant)) {
             const orderData = {
                customerId: auth.currentUser.uid,
@@ -100,7 +96,6 @@ const CartScreen = () => {
             console.log("✅ Order created with ID:", docRef.id);
          }
 
-         // Reset form and close modal
          setAddressModalVisible(false);
          setDeliveryAddress("");
          setCustomerName("");
@@ -132,7 +127,6 @@ const CartScreen = () => {
                </View>
 
                <View style={styles.modalBody}>
-                  {/* Customer Name */}
                   <View style={styles.inputContainer}>
                      <Text style={styles.inputLabel}>Full Name</Text>
                      <TextInput
@@ -143,7 +137,6 @@ const CartScreen = () => {
                      />
                   </View>
 
-                  {/* Phone Number */}
                   <View style={styles.inputContainer}>
                      <Text style={styles.inputLabel}>Phone Number</Text>
                      <TextInput
@@ -155,7 +148,6 @@ const CartScreen = () => {
                      />
                   </View>
 
-                  {/* Delivery Address */}
                   <View style={styles.inputContainer}>
                      <Text style={styles.inputLabel}>Delivery Address</Text>
                      <TextInput
@@ -168,7 +160,6 @@ const CartScreen = () => {
                      />
                   </View>
 
-                  {/* Special Instructions */}
                   <View style={styles.inputContainer}>
                      <Text style={styles.inputLabel}>
                         Special Instructions (Optional)
@@ -183,16 +174,14 @@ const CartScreen = () => {
                      />
                   </View>
 
-                  {/* Order Summary */}
                   <View style={styles.orderSummary}>
                      <Text style={styles.summaryTitle}>Order Summary</Text>
                      <Text style={styles.summaryText}>Items: {cartItems.length}</Text>
                      <Text style={styles.summaryTotal}>
-                        Total: ${getTotalPrice().toFixed(2)}
+                        Total: {getTotalPrice().toFixed(2)}
                      </Text>
                   </View>
 
-                  {/* Buttons */}
                   <View style={styles.modalButtons}>
                      <TouchableOpacity
                         style={styles.cancelButton}
@@ -218,7 +207,7 @@ const CartScreen = () => {
       <View style={styles.cartItem}>
          <View style={styles.itemInfo}>
             <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+            <Text style={styles.itemPrice}>{item.price.toFixed(2)}</Text>
          </View>
          <View style={styles.quantityControls}>
             <TouchableOpacity
@@ -264,7 +253,7 @@ const CartScreen = () => {
                   style={styles.cartList}
                />
                <View style={styles.totalContainer}>
-                  <Text style={styles.total}>Total: ${getTotalPrice().toFixed(2)}</Text>
+                  <Text style={styles.total}>Total: {getTotalPrice().toFixed(2)}</Text>
                   <TouchableOpacity
                      style={styles.orderButton}
                      onPress={handlePlaceOrderPress}
@@ -275,17 +264,97 @@ const CartScreen = () => {
             </>
          )}
 
-         {/* Address Modal */}
          {renderAddressModal()}
       </View>
    );
 };
 
-// Add these new styles to your existing StyleSheet
 const styles = StyleSheet.create({
-   // ... your existing styles ...
-
-   // Add these new styles
+   container: { flex: 1, padding: 20, backgroundColor: "#f8f9fa" },
+   title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: "#2c3e50" },
+   emptyCartContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+   },
+   emptyCart: {
+      textAlign: "center",
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#7f8c8d",
+      marginTop: 20,
+   },
+   emptyCartSubtext: {
+      textAlign: "center",
+      fontSize: 14,
+      color: "#95a5a6",
+      marginTop: 8,
+   },
+   cartList: {
+      flex: 1,
+   },
+   cartItem: {
+      flexDirection: "row",
+      backgroundColor: "#fff",
+      padding: 15,
+      marginBottom: 10,
+      borderRadius: 12,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+   },
+   itemInfo: { flex: 1 },
+   itemName: { fontSize: 16, fontWeight: "bold", color: "#2c3e50" },
+   itemPrice: { fontSize: 14, color: "#e74c3c", marginTop: 5, fontWeight: "600" },
+   quantityControls: { flexDirection: "row", alignItems: "center", marginRight: 15 },
+   quantityButton: {
+      backgroundColor: "#3498db",
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: "center",
+      alignItems: "center",
+   },
+   quantityButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
+   quantity: { marginHorizontal: 15, fontSize: 16, fontWeight: "bold", color: "#2c3e50" },
+   removeButton: {
+      padding: 8,
+   },
+   totalContainer: {
+      marginTop: 20,
+      borderTopWidth: 1,
+      borderTopColor: "#ecf0f1",
+      paddingTop: 20,
+      backgroundColor: "#fff",
+      borderRadius: 12,
+      padding: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+   },
+   total: {
+      fontSize: 22,
+      fontWeight: "bold",
+      textAlign: "center",
+      marginBottom: 15,
+      color: "#2c3e50",
+   },
+   orderButton: {
+      backgroundColor: "#27ae60",
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+   },
+   orderButtonText: {
+      color: "white",
+      fontSize: 18,
+      fontWeight: "bold",
+   },
    modalOverlay: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.5)",
@@ -381,93 +450,6 @@ const styles = StyleSheet.create({
    confirmOrderText: {
       color: "#fff",
       fontSize: 16,
-      fontWeight: "bold",
-   },
-
-   // Your existing styles continue here...
-   container: { flex: 1, padding: 20, backgroundColor: "#f8f9fa" },
-   title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: "#2c3e50" },
-   emptyCartContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-   },
-   emptyCart: {
-      textAlign: "center",
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#7f8c8d",
-      marginTop: 20,
-   },
-   emptyCartSubtext: {
-      textAlign: "center",
-      fontSize: 14,
-      color: "#95a5a6",
-      marginTop: 8,
-   },
-   cartList: {
-      flex: 1,
-   },
-   cartItem: {
-      flexDirection: "row",
-      backgroundColor: "#fff",
-      padding: 15,
-      marginBottom: 10,
-      borderRadius: 12,
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-   },
-   itemInfo: { flex: 1 },
-   itemName: { fontSize: 16, fontWeight: "bold", color: "#2c3e50" },
-   itemPrice: { fontSize: 14, color: "#e74c3c", marginTop: 5, fontWeight: "600" },
-   quantityControls: { flexDirection: "row", alignItems: "center", marginRight: 15 },
-   quantityButton: {
-      backgroundColor: "#3498db",
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      justifyContent: "center",
-      alignItems: "center",
-   },
-   quantityButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
-   quantity: { marginHorizontal: 15, fontSize: 16, fontWeight: "bold", color: "#2c3e50" },
-   removeButton: {
-      padding: 8,
-   },
-   totalContainer: {
-      marginTop: 20,
-      borderTopWidth: 1,
-      borderTopColor: "#ecf0f1",
-      paddingTop: 20,
-      backgroundColor: "#fff",
-      borderRadius: 12,
-      padding: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-   },
-   total: {
-      fontSize: 22,
-      fontWeight: "bold",
-      textAlign: "center",
-      marginBottom: 15,
-      color: "#2c3e50",
-   },
-   orderButton: {
-      backgroundColor: "#27ae60",
-      padding: 16,
-      borderRadius: 12,
-      alignItems: "center",
-   },
-   orderButtonText: {
-      color: "white",
-      fontSize: 18,
       fontWeight: "bold",
    },
 });

@@ -63,6 +63,7 @@ const RestaurantsScreen = () => {
       loadRestaurants();
    }, []);
 
+   // Search functionality
    useEffect(() => {
       if (searchQuery.trim() === "") {
          setFilteredRestaurants(restaurants);
@@ -137,8 +138,10 @@ const RestaurantsScreen = () => {
       <View style={styles.container}>
          <Text style={styles.title}>Choose a Restaurant</Text>
 
+         {/* Search Bar */}
          {renderSearchBar()}
 
+         {/* Results Count */}
          {searchQuery.length > 0 && (
             <View style={styles.resultsContainer}>
                <Text style={styles.resultsText}>
@@ -151,6 +154,7 @@ const RestaurantsScreen = () => {
             </View>
          )}
 
+         {/* Restaurants List */}
          {filteredRestaurants.length === 0 && !loading ? (
             <View style={styles.emptyContainer}>
                <Ionicons
@@ -202,6 +206,8 @@ const styles = StyleSheet.create({
       marginBottom: 20,
       color: "#2c3e50",
    },
+
+   // Search Bar Styles
    searchContainer: {
       marginBottom: 15,
    },
@@ -229,6 +235,8 @@ const styles = StyleSheet.create({
    clearButton: {
       padding: 5,
    },
+
+   // Results Styles
    resultsContainer: {
       marginBottom: 10,
    },
@@ -237,6 +245,8 @@ const styles = StyleSheet.create({
       color: "#7f8c8d",
       fontStyle: "italic",
    },
+
+   // List Styles
    listContainer: {
       paddingBottom: 20,
    },
@@ -276,6 +286,8 @@ const styles = StyleSheet.create({
       color: "#3498db",
       marginTop: 5,
    },
+
+   // Loading Styles
    loadingContainer: {
       flex: 1,
       justifyContent: "center",
@@ -287,6 +299,8 @@ const styles = StyleSheet.create({
       fontSize: 16,
       color: "#7f8c8d",
    },
+
+   // Empty State Styles
    emptyContainer: {
       flex: 1,
       justifyContent: "center",
